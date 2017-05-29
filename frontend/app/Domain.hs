@@ -151,8 +151,8 @@ startAnki a@(Anki _ (x:xs))    cfg@(MkAnkiConfig _ QsAll) =
 
 ankiStepWithAnswer :: AnkiConfig -> AnkiStep -> (Question -> Answer) -> (AnkiStep, Maybe Answer)
 ankiStepWithAnswer cfg as f =
-  let (completed, answer, newAs) = ankiApplyAnswer as
-      in (bool newAs (newAsOrder completed newAs) completed, answer)
+  let (_, answer, newAs) = ankiApplyAnswer as
+      in (newAsOrder newAs, answer)
 
   where
     comboLen = _comboLength cfg
@@ -173,19 +173,19 @@ ankiStepWithAnswer cfg as f =
               (x:xs)  -> AStep  (x:|xs) (qs:answrd))
           | otherwise      = (False, as')
 
-    newAsOrder _ (ASDone x) = ASDone x
-    newAsOrder _ (AStep (qs:|qss) answrd) =
+    newAsOrder (ASDone x) = ASDone x
+    newAsOrder (AStep (qs:|qss) answrd) =
       let (bs,cs)  = splitAt (answeredClosestLocation qss) qss
           (nq:nqs) = bs ++ insertFunction qs cs
       in AStep (nq:|nqs) answrd
       where
         insertFunction answd []          = [answd]
-        insertFunction answd rest@(x:xs) = if dFactor answd > dFactor x
+        insertFunction answd rest@(x:xs) = if eFactor answd < eFactor x
                                           then answd : rest
                                           else x : insertFunction answd xs
 
-        dFactor :: QuestionState -> Double
-        dFactor qs' = 1.0 - (fromIntegral (qsGoodAnwers qs) / fromIntegral (qsAllAnwers qs' + 1))
+        eFactor :: QuestionState -> Double
+        eFactor qs' = fromIntegral (qsGoodAnwers qs) / fromIntegral (qsAllAnwers qs' + 1)
 
     -- sortByDifficulty = sortBy (comparing (\(QuestionState _ _ ans' asked') -> (fromIntegral ans' / fromIntegral asked') :: Double))
 
@@ -207,12 +207,12 @@ ankiStepWithAnswer cfg as f =
 --                            in AStep nq nqs
 
 --     insertFunction answd []          = [answd]
---     insertFunction answd rest@(x:xs) = if dFactor answd > dFactor x
+--     insertFunction answd rest@(x:xs) = if eFactor answd > eFactor x
 --                                        then answd : rest
 --                                        else x : insertFunction answd xs
 
---     dFactor :: QuestionState -> Double
---     dFactor (QuestionState _ _ ans' asked') = 1.0 - (fromIntegral ans' / (fromIntegral asked'+1))
+--     eFactor :: QuestionState -> Double
+--     eFactor (QuestionState _ _ ans' asked') = 1.0 - (fromIntegral ans' / (fromIntegral asked'+1))
 
 
 -- startAnki :: Anki -> AnkiProgress
