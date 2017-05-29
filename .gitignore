@@ -1,0 +1,4 @@
+frontend/.stack-work/**
+backend/.stack-work/**
+backend/dist/build/**
+electron-build/static/srv/collections/**

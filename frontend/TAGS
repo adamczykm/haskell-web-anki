@@ -1,0 +1,386 @@
+
+./app/Domain.hs,1590
+module Domain Domain2,3
+data Question Question11,12
+data Question = Question Question11,12
+data Question = Question { qsId qsId11,12
+data Question = Question { qsId :: String, imgPath imgPath11,12
+data Question = Question { qsId :: String, imgPath :: FilePath, question question11,12
+data Answer Answer16,17
+data Answer = Good Good16,17
+data Answer = Good | BadBad16,17
+comboLength comboLength31,32
+comboLength comboLength32,33
+data Combo Combo35,36
+data Combo = InProgress InProgress35,36
+           | CompletedCompleted36,37
+newCombo newCombo41,42
+newCombo newCombo42,43
+resetCombo resetCombo44,45
+resetCombo resetCombo45,46
+progressCombo progressCombo47,48
+progressCombo progressCombo48,49
+isCompleted isCompleted53,54
+isCompleted isCompleted54,55
+data QuestionState QuestionState60,61
+data QuestionState = QuestionState QuestionState60,61
+  qsQuestion qsQuestion61,62
+  qsCombo qsCombo62,63
+  qsGoodAnwers qsGoodAnwers63,64
+  qsAnswers qsAnswers64,65
+newQuestionState newQuestionState67,68
+newQuestionState newQuestionState68,69
+data Anki Anki72,73
+data Anki = Anki Anki72,73
+data AnkiProgress AnkiProgress75,76
+data AnkiProgress = AnkiProgress AnkiProgress75,76
+data AnkiStep AnkiStep77,78
+data AnkiStep = AStep AStep77,78
+              | ASDoneASDone78,79
+answeredClosestLocation answeredClosestLocation82,83
+answeredClosestLocation answeredClosestLocation83,84
+startAnki startAnki88,89
+startAnki startAnki89,90
+ankiStepWithAnswer ankiStepWithAnswer94,95
+ankiStepWithAnswer ankiStepWithAnswer95,96
+
+./app/Resources.hs,751
+module Resources Resources4,5
+reifyResource reifyResource23,24
+reifyResource reifyResource24,25
+newtype FreeResource FreeResource26,27
+newtype FreeResource a = FreeResource FreeResource26,27
+newtype FreeResource a = FreeResource { unFreeResource unFreeResource26,27
+data ResourceError ResourceError28,29
+data ResourceError = FileSystemError FileSystemError28,29
+                   | InvalidResourceStructure InvalidResourceStructure29,30
+                   | OtherIOError OtherIOError30,31
+class Monad m => MonadResource MonadResource33,34
+class Monad m => MonadResource MonadResource33,34
+    loadQuestions loadQuestions34,35
+data ResourceF ResourceF36,37
+    = LoadQuestions LoadQuestions37,38
+instance instance39,40
+
+./app/Services.hs,2742
+newtype Interpret Interpret39,40
+newtype Interpret c d = Interpret Interpret39,40
+newtype Interpret c d = Interpret {unInterpret unInterpret39,40
+newtype Interp Interp40,41
+newtype Interp g eff = Interp Interp40,41
+newtype Interp g eff = Interp {unInterp unInterp40,41
+newtype ServiceFunX ServiceFunX42,43
+newtype ServiceFunX c r = ServiceFunX ServiceFunX42,43
+newtype ServiceFunX c r = ServiceFunX { unServiceFunx unServiceFunx42,43
+instance instance44,45
+type Url Url50,51
+class Monad m => MonadHttp MonadHttp52,53
+class Monad m => MonadHttp MonadHttp52,53
+  httpGet httpGet53,54
+class Monad m => MonadLog MonadLog55,56
+class Monad m => MonadLog MonadLog55,56
+  logM logM56,57
+class Monad m => MonadRestApi MonadRestApi58,59
+class Monad m => MonadRestApi MonadRestApi58,59
+  getUsersIds getUsersIds59,60
+data Service Service63,64
+data Service = LoggingService LoggingService63,64
+data Service = LoggingService | ResourceService ResourceService63,64
+data Service = LoggingService | ResourceService | ElectronApiServiceElectronApiService63,64
+type family family65,66
+type family ServicesFam ServicesFam65,66
+type family family70,71
+type family ServiceMonadFam ServiceMonadFam70,71
+newtype Attr Attr75,76
+newtype Attr f g = Attr Attr75,76
+newtype Attr f g = Attr { _unAttr _unAttr75,76
+(=(78,79
+(=:=::78,79
+type Services Services84,85
+type Services eff eff84,85
+type MockMonad MockMonad89,90
+type MockMonad r r89,90
+productionResourceService productionResourceService97,98
+productionResourceService productionResourceService98,99
+productionLogService productionLogService100,101
+productionLogService productionLogService101,102
+productionElectronApiService productionElectronApiService103,104
+productionElectronApiService productionElectronApiService104,105
+runApp runApp108,109
+runApp runApp109,110
+newtype App App111,112
+newtype App a = App App111,112
+newtype App a = App { unApp unApp111,112
+type Application Application113,114
+type Application a a113,114
+type ServiceFun1 ServiceFun1114,115
+type ServiceFun1 s s114,115
+type ServiceFun2 ServiceFun2115,116
+type ServiceFun2 s1 s1115,116
+productionServices productionServices119,120
+productionServices productionServices120,121
+callWithResourceService callWithResourceService127,128
+callWithResourceService callWithResourceService128,129
+callWithLogService callWithLogService135,136
+callWithLogService callWithLogService136,137
+callWithElectronApiService callWithElectronApiService143,144
+callWithElectronApiService callWithElectronApiService144,145
+fun3 fun3153,154
+fun3 fun3154,155
+app1 app1160,161
+app1 app1161,162
+test3 test3163,164
+test3 test3164,165
+
+./app/ElectronApi.hs,274
+module ElectronApi ElectronApi4,5
+class Monad m => MonadElectronApi MonadElectronApi11,12
+class Monad m => MonadElectronApi MonadElectronApi11,12
+    consoleLog consoleLog12,13
+    alert alert13,14
+    showOpenDialog showOpenDialog14,15
+instance instance18,19
+
+./app/ReflexDomApp.hs,465
+newtype ReflexDomApp ReflexDomApp14,15
+newtype ReflexDomApp a = ReflexDomApp ReflexDomApp14,15
+newtype ReflexDomApp a = ReflexDomApp { unReflexDomApp unReflexDomApp14,15
+type ReflexServiceFun ReflexServiceFun17,18
+type ReflexServiceFun s s17,18
+type ReflexServiceFun2 ReflexServiceFun218,19
+type ReflexServiceFun2 s1 s118,19
+type ReflexServiceFun3 ReflexServiceFun319,20
+runReflexDomApp runReflexDomApp21,22
+runReflexDomApp runReflexDomApp24,25
+
+./app/NlpCore.hs,734
+module NlpCore NlpCore1,2
+type TextMap TextMap11,12
+type TextMap a a11,12
+showTextSortMostFrequent showTextSortMostFrequent13,14
+showTextSortMostFrequent showTextSortMostFrequent14,15
+showTextMap showTextMap19,20
+showTextMap showTextMap20,21
+newtype Rewrite Rewrite26,27
+newtype Rewrite = Rw Rw26,27
+newtype Rewrite = Rw { doRw doRw26,27
+rwErase rwErase28,29
+rwErase rwErase29,30
+rwReplace rwReplace31,32
+rwReplace rwReplace32,33
+textToWords textToWords34,35
+textToWords textToWords35,36
+parseRewrites parseRewrites45,46
+parseRewrites parseRewrites46,47
+wordsAccum wordsAccum64,65
+wordsAccum wordsAccum70,71
+defaultWordsCount defaultWordsCount76,77
+defaultWordsCount defaultWordsCount81,82
+
+./app/Main.hs,2200
+module Main Main11,12
+main main32,33
+main main33,34
+testServiceApp testServiceApp35,36
+testServiceApp testServiceApp36,37
+mainLayout mainLayout41,42
+mainLayout mainLayout42,43
+ankiWorkflowWidget ankiWorkflowWidget78,79
+ankiWorkflowWidget ankiWorkflowWidget80,81
+buildAnkiDisplayWorkflow buildAnkiDisplayWorkflow89,90
+buildAnkiDisplayWorkflow buildAnkiDisplayWorkflow90,91
+ankiAnswerWidget ankiAnswerWidget137,138
+ankiAnswerWidget ankiAnswerWidget138,139
+ankiWidget' ankiWidget'142,143
+ankiWidget' ankiWidget'143,144
+ankiWidget ankiWidget171,172
+ankiWidget ankiWidget172,173
+data ListElem ListElem177,178
+data ListElem a = ListElem ListElem177,178
+data ListElem a = ListElem { _listElemValue _listElemValue177,178
+                           , _listElemImgPath _listElemImgPath178,179
+                           , _listElemHeader _listElemHeader179,180
+                           , _listContentText _listContentText180,181
+newtype AnswerEvent AnswerEvent182,183
+newtype AnswerEvent = AnswerEvent AnswerEvent182,183
+data AnswerState AnswerState186,187
+data AnswerState = Prompting Prompting186,187
+data AnswerState = Prompting | AnsweringAnswering186,187
+collectionToListElem collectionToListElem190,191
+collectionToListElem collectionToListElem191,192
+listLeftMostClick listLeftMostClick195,196
+listLeftMostClick listLeftMostClick196,197
+listWithElems listWithElems201,202
+listWithElems listWithElems202,203
+createImgPath createImgPath213,214
+createImgPath createImgPath214,215
+listElemImgSize listElemImgSize222,223
+listElemImgSize listElemImgSize223,224
+nestR nestR228,229
+nestR nestR229,230
+nestDivClasses nestDivClasses231,232
+nestDivClasses nestDivClasses232,233
+divClass' divClass'234,235
+divClass' divClass'235,236
+buttonClass buttonClass237,238
+buttonClass buttonClass238,239
+spanClass' spanClass'242,243
+spanClass' spanClass'243,244
+imgClass' imgClass'245,246
+imgClass' imgClass'246,247
+elClass' elClass'248,249
+elClass' elClass'249,250
+widgetHoldHelper widgetHoldHelper251,252
+widgetHoldHelper widgetHoldHelper254,255
+myFmapMaybe myFmapMaybe259,260
+myFmapMaybe myFmapMaybe260,261
+
+./app/UiComponents.hs,1151
+module UiComponents UiComponents11,12
+elDiv' elDiv'20,21
+fullSizeDivWithClass' fullSizeDivWithClass'23,24
+fullSizeDivWithClass' fullSizeDivWithClass'24,25
+fullSizeDivWithClass fullSizeDivWithClass28,29
+fullSizeDivWithClass fullSizeDivWithClass29,30
+centeringDiv' centeringDiv'32,33
+centeringDiv' centeringDiv'33,34
+centeringDiv centeringDiv37,38
+centeringDiv centeringDiv38,39
+fullSizeCenteredImg' fullSizeCenteredImg'41,42
+fullSizeCenteredImg' fullSizeCenteredImg'42,43
+fullSizeCenteredImg fullSizeCenteredImg46,47
+fullSizeCenteredImg fullSizeCenteredImg47,48
+divQuestionPrompt' divQuestionPrompt'49,50
+divQuestionPrompt' divQuestionPrompt'50,51
+divQuestionPrompt divQuestionPrompt52,53
+divQuestionPrompt divQuestionPrompt53,54
+divQuestionAnswer' divQuestionAnswer'56,57
+divQuestionAnswer' divQuestionAnswer'57,58
+divQuestionAnswer divQuestionAnswer59,60
+divQuestionAnswer divQuestionAnswer60,61
+spanQuestion spanQuestion65,66
+spanQuestion spanQuestion66,67
+questionImg questionImg68,69
+questionImg questionImg69,70
+divAnswerButtons divAnswerButtons72,73
+divAnswerButtons divAnswerButtons73,74
+
+./app/ApiClient.hs,392
+module ApiClient ApiClient9,10
+debugPrint debugPrint22,23
+debugPrint2 debugPrint223,24
+debugPrintF debugPrintF24,25
+serverUrl serverUrl26,27
+serverUrl serverUrl27,28
+getAnkiNamesList getAnkiNamesList30,31
+getAnkiNamesList getAnkiNamesList31,32
+getAnki getAnki33,34
+getAnki getAnki34,35
+imgSrcForQuestion imgSrcForQuestion45,46
+imgSrcForQuestion imgSrcForQuestion46,47
+
+./app/Main2.hs,4035
+module Main2 Main211,12
+main main33,34
+main main34,35
+nestR nestR36,37
+nestR nestR37,38
+nestDivClasses nestDivClasses39,40
+nestDivClasses nestDivClasses40,41
+divClass' divClass'42,43
+divClass' divClass'43,44
+buttonClass buttonClass45,46
+buttonClass buttonClass46,47
+spanClass' spanClass'50,51
+spanClass' spanClass'51,52
+imgClass' imgClass'53,54
+imgClass' imgClass'54,55
+questions questions56,57
+questions questions57,58
+testServiceApp testServiceApp59,60
+testServiceApp testServiceApp60,61
+logShit logShit62,63
+logShit logShit63,64
+logShit2 logShit265,66
+logShit2 logShit266,67
+ankiWorkflowWidget ankiWorkflowWidget73,74
+ankiWorkflowWidget ankiWorkflowWidget77,78
+buildAnkiDisplayWorkflow buildAnkiDisplayWorkflow89,90
+buildAnkiDisplayWorkflow buildAnkiDisplayWorkflow91,92
+questionWorkflowWidget questionWorkflowWidget137,138
+questionWorkflowWidget questionWorkflowWidget138,139
+mainLayout3 mainLayout3150,151
+mainLayout3 mainLayout3151,152
+mainLayout mainLayout195,196
+mainLayout mainLayout196,197
+data ListElem ListElem208,209
+data ListElem a = ListElem ListElem208,209
+data ListElem a = ListElem { _listElemValue _listElemValue208,209
+                           , _listElemImgPath _listElemImgPath209,210
+                           , _listElemHeader _listElemHeader210,211
+                           , _listContentText _listContentText211,212
+newtype AnswerEvent AnswerEvent213,214
+newtype AnswerEvent = AnswerEvent AnswerEvent213,214
+data AnswerState AnswerState217,218
+data AnswerState = Prompting Prompting217,218
+data AnswerState = Prompting | AnsweringAnswering217,218
+widgetHoldHelper widgetHoldHelper220,221
+widgetHoldHelper widgetHoldHelper223,224
+listProcessingWorkflow listProcessingWorkflow226,227
+listProcessingWorkflow listProcessingWorkflow235,236
+listProcessingWorkflow2 listProcessingWorkflow2246,247
+listProcessingWorkflow2 listProcessingWorkflow2255,256
+buildDisplayWorkflow2 buildDisplayWorkflow2267,268
+buildDisplayWorkflow2 buildDisplayWorkflow2268,269
+--newtype --newtype323,324
+buildDisplayWorkflow buildDisplayWorkflow325,326
+buildDisplayWorkflow buildDisplayWorkflow326,327
+questionWidget' questionWidget'356,357
+questionWidget' questionWidget'357,358
+ankiAnswerWidget ankiAnswerWidget387,388
+ankiAnswerWidget ankiAnswerWidget388,389
+questionWidget questionWidget390,391
+questionWidget questionWidget391,392
+collectionToListElem collectionToListElem394,395
+collectionToListElem collectionToListElem395,396
+exampleList exampleList399,400
+exampleList exampleList400,401
+myFmapMaybe myFmapMaybe407,408
+myFmapMaybe myFmapMaybe408,409
+elClass' elClass'412,413
+elClass' elClass'413,414
+listLeftMostClick listLeftMostClick415,416
+listLeftMostClick listLeftMostClick416,417
+listWithElems listWithElems421,422
+listWithElems listWithElems422,423
+createImgPath createImgPath433,434
+createImgPath createImgPath434,435
+listElemImgSize listElemImgSize442,443
+listElemImgSize listElemImgSize443,444
+imgAttr imgAttr445,446
+imgAttr imgAttr446,447
+tmpImg tmpImg448,449
+tmpImg tmpImg449,450
+mainTextArea mainTextArea452,453
+mainTextArea mainTextArea453,454
+divId divId458,459
+divId divId459,460
+uniqueWordsCountsList uniqueWordsCountsList461,462
+uniqueWordsCountsList uniqueWordsCountsList462,463
+wordsAccumWidget wordsAccumWidget468,469
+wordsAccumWidget wordsAccumWidget469,470
+countAllWords countAllWords493,494
+countAllWords countAllWords494,495
+countDifferentWords countDifferentWords496,497
+countDifferentWords countDifferentWords497,498
+rewritesTextArea rewritesTextArea499,500
+rewritesTextArea rewritesTextArea500,501
+inputTextArea inputTextArea504,505
+inputTextArea inputTextArea505,506
+rewritesTextAreaInitial rewritesTextAreaInitial512,513
+rewritesTextAreaInitial rewritesTextAreaInitial513,514
+inputTextAreaInitialValue inputTextAreaInitialValue515,516
+inputTextAreaInitialValue inputTextAreaInitialValue516,517
+
+./Setup.hs,15
+main main1,2

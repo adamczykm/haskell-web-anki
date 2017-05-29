@@ -1,0 +1,1 @@
+../frontend/.stack-work/install/x86_64-linux/lts-7.1/ghcjs-0.2.1.9007001_ghc-8.0.1/bin/reflex-starter.jsexe/all.min.js

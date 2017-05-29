@@ -1,0 +1,56 @@
+
+./app/Main.hs,52
+module Main Main0,1
+main main4,5
+main main5,6
+
+./Setup.hs,15
+main main1,2
+
+./test/Spec.hs,30
+main main0,1
+main main1,2
+
+./src/Resources.hs,298
+data ResourceError ResourceError2,3
+data ResourceError = FileSystemError FileSystemError2,3
+                   | InvalidResourceStructure InvalidResourceStructure3,4
+                   | OtherIOError OtherIOError4,5
+loadQuestionsIO loadQuestionsIO7,8
+loadQuestionsIO loadQuestionsIO8,9
+
+./src/Lib.hs,1139
+module LibLib4,5
+type ResourcesAPI ResourcesAPI26,27
+resourceApi resourceApi28,29
+resourceApi resourceApi29,30
+serveResourceDir serveResourceDir31,32
+serveResourceDir serveResourceDir32,33
+appServeStatic appServeStatic34,35
+data User User36,37
+data User = UserUser36,37
+  { userId userId37,38
+  , userFirstName userFirstName38,39
+  , userLastName userLastName39,40
+type API API44,45
+startApp startApp46,47
+startApp startApp48,49
+app app50,51
+app app51,52
+api api53,54
+api api54,55
+server server56,57
+server server57,58
+users users59,60
+users users60,61
+data Question Question66,67
+data Question = Question Question66,67
+data Question = Question { imgPath imgPath66,67
+data Question = Question { imgPath :: FilePath, question question66,67
+type QuestionAPI QuestionAPI72,73
+data ResourceError ResourceError77,78
+data ResourceError = FileSystemError FileSystemError77,78
+                   | InvalidResourceStructure InvalidResourceStructure78,79
+                   | OtherIOError OtherIOError79,80
+loadQuestionsIO loadQuestionsIO82,83
+loadQuestionsIO loadQuestionsIO83,84
