@@ -21,6 +21,7 @@ executable reflex-starter
 
   build-depends:       base
                      , ghcjs-base
+                     , ghcjs-dom
                      , reflex >= 0.5.0
                      , reflex-dom >= 0.3
                      , containers >= 0.5

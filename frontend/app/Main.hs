@@ -13,21 +13,54 @@ module Main where
 
 import Reflex
 import Reflex.Dom
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Map (fromList)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Monoid
-import Control.Monad (sequence, void, liftM2)
+import Control.Monad (sequence, void, liftM2, join)
 import Control.Monad.IO.Class (liftIO)
 import Data.Time.Clock
 import Text.Read (readMaybe)
+import NonEmpty
 
 import Domain
 import ReflexDomApp
 import Services
 import ApiClient
 import Debug
+
+----------------------- temp keyboard solution ------------------------
+
+import GHCJS.DOM (currentDocument)
+
+-- import qualified GHCJS.DOM.Types as DT
+import GHCJS.DOM.Types (HTMLDocument, HTMLElement, Element, toElement)
+import Control.Monad.IO.Class
+-- import GHCJS.DOM.Builder
+import GHCJS.DOM.Document (getBody)
+import Reflex.Dom.Widget
+import Reflex.Dom.Widget.Basic
+
+
+currentBodyUnchecked :: MonadWidget t m => m (El t)
+currentBodyUnchecked = rawBodyUnchecked >>= wrapElement defaultDomEventHandler
+  where
+
+    -- temp :: forall t h m. (Functor (Event t), MonadIO m, MonadSample t m, Reflex t, HasPostGui t h m) => HTMLElement -> m (El t)
+    -- temp = wrapElement
+
+    rawBodyUnchecked ::MonadIO m => m Element
+    rawBodyUnchecked = do
+      mdoc <- liftIO currentDocument
+      case mdoc of
+        Nothing -> error "Document is nothing"
+        Just doc -> do
+          body <- getBody doc
+          case body of
+            Nothing -> error "body is nothing"
+            Just htmlel -> return $ toElement htmlel
 
 ------------------------ MAIN -----------------------------------------
 
@@ -40,9 +73,18 @@ testServiceApp = ReflexDomApp mainLayout
 
 --------------------- MAIN LAYOUT --------------------------------------
 
+testLayout :: MonadWidget t m => ReflexServiceFun2 'ResourceService 'LoggingService m ()
+testLayout = do
+  e <- currentBodyUnchecked
+  kp <- holdDyn "0" $ show <$> (domEvent Keydown e)
+  dynText kp
+  void $ workflow (mapWorkflow show $ testWorkflow (constant (return 1)) (M.fromList [(1, testwidget1 1), (2, testwidget1 2), (3, testwidget1 3)]))
+
 mainLayout :: MonadWidget t m => ReflexServiceFun2 'ResourceService 'LoggingService m ()
 mainLayout = nestDivClasses ["window", "window-content", "pane-group"] $ mdo
-
+    e <- currentBodyUnchecked
+    kp <- holdDyn "0" $ show <$> (domEvent Keydown e)
+    dynText kp
     -- main pane
     maaE <- divClass "pane" $ ankiWorkflowWidget (ankiLoadedWithConfig ankiConfig startAnkiE)
 
@@ -386,8 +428,78 @@ widgetHoldHelper :: MonadWidget t m
     -> m (Dynamic t b)
 widgetHoldHelper f eDef e = widgetHold (f eDef) (f <$> e)
 
+-- test widget navigator
+
+data Nav = Back | Next
+  deriving(Eq, Show)
+
+
+--     widgetHold :: MonadWidget t m => m a -> Event t (m a) -> m (Dynamic t a)
+
+-- buildNavigationWorkflow :: MonadWidget t m => NonEmpty (m a) -> Workflow t m a
+-- buildNavigationWorkflow ne = Workflow $ fmap (,never) w
+--   where
+--     buildWorkflow :: MonadWidget t m => m a -> [m a] -> [m a] -> Workflow t m a
+--     buildWorkflow curr prevs nexts = Workflow $ do
+--       (ret, ev) <- testWrapNav curr (safeHead prevs) (safeHead nexts)
+--       return (ret,  )
+
+--     safeHead []    = Nothing
+--     safeHead (x:_) = x
+-- buildNavigationWorkflow (w0 :| (w:ws)) = undefined
+
+-- data Fix a = Fix { val  :: a
+--                  , prev :: (Maybe (Fix a))
+--                  , next :: (Maybe (Fix a))}
+
+-- widgetView :: MonadWidget t m => m a -> [m a] -> [m a] -> m (Workflow t m a)
+-- widgetView curr prevs nexts = do
+--   (nE, ret) <- testWrapNav curr
+--   wf <- return $ flip fmap nE $ \case
+--     Back -> case prevs of
+--               []     -> widgetView curr prevs nexts
+--               (p:ps) -> widgetView p ps (curr:nexts)
+--     Next -> case nexts of
+--               []     -> widgetView curr prevs nexts
+--               (n:ns) -> widgetView n (curr:prevs) ns
+--   return $ Workflow (ret, wf)
+
+constructNavigationList :: MonadWidget t m => [m a] -> [m (Event t (m a), a)]
+constructNavigationList []     = []
+constructNavigationList (x:xs) = []
+
+
+
+testWorkflow :: MonadWidget t m => Behavior t (m Int) -> Map Int (m Int) -> Workflow t m Int
+testWorkflow start g = Workflow $ mdo
+  ind <- join (sample start)
+  eb <- case M.lookup (ind-1) g of
+    Nothing -> return never
+    Just i  -> fmap (const (testWorkflow (constant i) g)) <$> buttonClass "back" "Back"
+  en <- case M.lookup (ind+1) g of
+    Nothing -> return never
+    Just i  -> fmap (const (testWorkflow (constant i) g)) <$> buttonClass "next" "Next"
+  return (ind, leftmost [eb,en])
+
+
+
+
+testWrapNav :: MonadWidget t m => m a -> Maybe (m a) -> Maybe (m a) -> m (Event t (m a), a)
+testWrapNav w mPrev mNext = do
+  b <- case mPrev of
+            Nothing   -> return never
+            Just prev -> fmap (const prev) <$> buttonClass "back" "Back"
+  ret <- w
+  n <- case mNext of
+            Nothing   -> return never
+            Just next -> fmap (const next) <$> buttonClass "next" "Next"
+  return (leftmost [b,n], ret)
+
+testwidget1 :: MonadWidget t m => Int -> m Int
+testwidget1 s = (text (show s)) >> return s
 
 ------------------- OTHER AUXILIARY -----------------------------
+
 
 myFmapMaybe :: Monad m => (a -> m b) -> Maybe a -> m (Maybe b)
 myFmapMaybe f (Just v) = sequence . Just . f $ v

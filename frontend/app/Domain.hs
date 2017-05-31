@@ -8,6 +8,7 @@ import           Data.List     (elemIndex)
 import           Data.Maybe    (fromMaybe)
 import           Data.Text     (Text)
 import Data.Bool (bool)
+import NonEmpty
 
 import Debug
 
@@ -100,16 +101,6 @@ isCompleted cLength = (== Completed) . checkCombo cLength
 -- newQuestionState qs = QuestionState qs (InProgress 0) 0 0
 
 ----------- anki series
-
-infixr 5 :|
-data NonEmpty a = a :| [a]
-  deriving (Eq, Ord, Show, Read)
-
-nonEmptyList :: NonEmpty a -> [a]
-nonEmptyList (x:|xs) = x : xs
-
-neHead :: NonEmpty a -> a
-neHead (x:|_) = x
 
 data Anki = Anki String [Question]
   deriving (Eq,Show)
