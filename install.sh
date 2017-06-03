@@ -1,6 +1,7 @@
 cd backend
 stack install
 cd ../frontend
+stack clean
 stack install
 cd bin
 ccjs all.js --compilation_level=ADVANCED_OPTIMIZATIONS > all.min.js

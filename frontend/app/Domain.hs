@@ -111,9 +111,10 @@ data QuestionSelector = QsAll | QsSelected [Question]
 
 data AnkiConfig = MkAnkiConfig{ _comboLength :: Integer
                               , _questionFilter :: QuestionSelector}
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data AnkiProgress = MkAnkiProgress Anki AnkiStep AnkiConfig
+  deriving (Eq, Show)
 
 data AnkiStep = AStep (NonEmpty QuestionState) [QuestionState]
               | ASDone [QuestionState]
@@ -172,8 +173,8 @@ ankiStepWithAnswer cfg as f =
       where
         insertFunction answd []          = [answd]
         insertFunction answd rest@(x:xs) = if eFactor answd < eFactor x
-                                          then answd : rest
-                                          else x : insertFunction answd xs
+                                           then answd : rest
+                                           else x : insertFunction answd xs
 
         eFactor :: QuestionState -> Double
         eFactor qs' = fromIntegral (qsGoodAnwers qs) / fromIntegral (qsAllAnwers qs' + 1)

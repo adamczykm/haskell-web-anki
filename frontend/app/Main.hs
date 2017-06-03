@@ -1,8 +1,10 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -13,13 +15,12 @@ module Main where
 
 import Reflex
 import Reflex.Dom
-import Data.Map (Map)
+import Data.Map (Map, fromList)
 import qualified Data.Map as M
-import Data.Map (fromList)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Monoid
-import Control.Monad (sequence, void, liftM2, join)
+import Control.Monad (sequence, void, liftM2)
 import Control.Monad.IO.Class (liftIO)
 import Data.Time.Clock
 import Text.Read (readMaybe)
@@ -30,37 +31,9 @@ import ReflexDomApp
 import Services
 import ApiClient
 import Debug
-
------------------------ temp keyboard solution ------------------------
-
-import GHCJS.DOM (currentDocument)
-
--- import qualified GHCJS.DOM.Types as DT
-import GHCJS.DOM.Types (HTMLDocument, HTMLElement, Element, toElement)
-import Control.Monad.IO.Class
--- import GHCJS.DOM.Builder
-import GHCJS.DOM.Document (getBody)
-import Reflex.Dom.Widget
-import Reflex.Dom.Widget.Basic
-
-
-currentBodyUnchecked :: MonadWidget t m => m (El t)
-currentBodyUnchecked = rawBodyUnchecked >>= wrapElement defaultDomEventHandler
-  where
-
-    -- temp :: forall t h m. (Functor (Event t), MonadIO m, MonadSample t m, Reflex t, HasPostGui t h m) => HTMLElement -> m (El t)
-    -- temp = wrapElement
-
-    rawBodyUnchecked ::MonadIO m => m Element
-    rawBodyUnchecked = do
-      mdoc <- liftIO currentDocument
-      case mdoc of
-        Nothing -> error "Document is nothing"
-        Just doc -> do
-          body <- getBody doc
-          case body of
-            Nothing -> error "body is nothing"
-            Just htmlel -> return $ toElement htmlel
+import WorkflowUtils (WorkflowWidget(..), widgetGraphWorkflow)
+import Keyboard
+import ReflexFix
 
 ------------------------ MAIN -----------------------------------------
 
@@ -73,83 +46,40 @@ testServiceApp = ReflexDomApp mainLayout
 
 --------------------- MAIN LAYOUT --------------------------------------
 
-testLayout :: MonadWidget t m => ReflexServiceFun2 'ResourceService 'LoggingService m ()
-testLayout = do
-  e <- currentBodyUnchecked
-  kp <- holdDyn "0" $ show <$> (domEvent Keydown e)
-  dynText kp
-  void $ workflow (mapWorkflow show $ testWorkflow (constant (return 1)) (M.fromList [(1, testwidget1 1), (2, testwidget1 2), (3, testwidget1 3)]))
-
 mainLayout :: MonadWidget t m => ReflexServiceFun2 'ResourceService 'LoggingService m ()
 mainLayout = nestDivClasses ["window", "window-content", "pane-group"] $ mdo
-    e <- currentBodyUnchecked
-    kp <- holdDyn "0" $ show <$> (domEvent Keydown e)
-    dynText kp
-    -- main pane
-    maaE <- divClass "pane" $ ankiWorkflowWidget (ankiLoadedWithConfig ankiConfig startAnkiE)
 
+    _ <- divClass "pane" $ ankiWorkflowWidget (Just <$> ankiLoaded)
+
+    -- states <- workflow ankiSelectionWorkflowWidget
     -- left pane
-    (startButtonPressed, ankiNameSelected, ankiConfig) <- divClass "pane-sm sidebar padded" $ do
-
-          _ <- -- current completion and accuracy of chosen collection --
-               divClass "collection-info-container" $
-               liftM2 (,) (completionInfoWidget startAnkiE maaE)
-                          (accuracyInfoWidget startAnkiE maaE)
-               ----------------------------------------------------------
-
-          -- get available collections from server every n sec.
-          colls <- liftM2 (<>) getPostBuild (getTickCounter 10) >>= getAnkiNamesList
-
-          -- construct dynamic list with available collections
-          -- and stores event of clicking one of its elements
-
-          --     widgetHold :: MonadWidget t m => m a -> Event t (m a) -> m (Dynamic t a)
-          ankiNameSelected <- divClass "collections-list " $ switchPromptlyDyn <$> widgetHold (listLeftMostClick $ listWithElems []) (constructCollectionList <$> colls)
-
-          -- config widget
-          ankiConfig <- ankiConfigWidget ankiLoaded
-
-          -- start anki button
-          startButtonPressed <- buttonClass "start-anki-button" "Start"
-
-          return (startButtonPressed, ankiNameSelected, ankiConfig)
-
-    ankiLoaded <- getAnki ankiNameSelected
-    loadedAnkiDyn <- holdDyn Nothing ankiLoaded
-
-    let startAnkiE = attachDynWith const loadedAnkiDyn startButtonPressed
+    ankiSelectionState <- divClass "darker-back pane-sm sidebar padded" $ workflow ankiSelectionWorkflowWidget
+    let ankiLoaded = onAllLoaded $ updated ankiSelectionState
 
     return ()
   where
 
-    ankiLoadedWithConfig :: Reflex t => Dynamic t AnkiConfig -> Event t (Maybe Anki) -> Event t (Maybe (Anki, AnkiConfig))
-    ankiLoadedWithConfig = attachDynWith maybeHelper
+    onAllLoaded :: Reflex t => Event t AnkiSelectionState -> Event t AnkiProgress
+    onAllLoaded e = unsafeGetProgress <$> ffilter justAllLoaded e
       where
-        maybeHelper _ Nothing = Nothing
-        maybeHelper d (Just e) = Just (e, d)
+        unsafeGetProgress (AllLoaded p) = p
+        unsafeGetProgress _             = error "Only call this on filtered events."
 
-    getTickCounter :: MonadWidget t m => Int -> m (Event t ())
-    getTickCounter interval = void <$> (liftIO getCurrentTime >>= tickLossy (realToFrac interval))
-
-    constructCollectionList :: MonadWidget t m => Maybe [String] -> m (Event t String)
-    constructCollectionList Nothing = listLeftMostClick $ listWithElems []
-    constructCollectionList (Just xs ) = listLeftMostClick . listWithElems . map collectionToListElem $ xs
-
+        justAllLoaded (AllLoaded _) = True
+        justAllLoaded _             = False
 
 
 ------------------------ ANKI WIDGET -----------------------------------------
 
-maybeAttach :: a -> Maybe b -> Maybe (a,b)
+maybeAttach :: a -> Maybe b -> Maybe (a, b)
 maybeAttach _ Nothing  = Nothing
 maybeAttach a (Just b) = Just (a,b)
 
 -- workflow :: forall t m a. MonadWidget t m => Workflow t m a -> m (Dynamic t a)
 ankiWorkflowWidget :: MonadWidget t m =>
-                      Event t (Maybe (Anki, AnkiConfig)) -> m (Event t (Maybe (AnkiStep, Answer)))
-ankiWorkflowWidget ema = do
-  let mAp            = (fmap.fmap) (uncurry startAnki) ema
-      workflowWidget = widgetHold (questionWorkflow Nothing) (fmap questionWorkflow mAp)
-
+                      Event t (Maybe AnkiProgress) -> m (Event t (Maybe (AnkiStep, Answer)))
+ankiWorkflowWidget ap = do
+  let workflowWidget = widgetHold (questionWorkflow Nothing) (fmap questionWorkflow ap)
   (switchPromptlyDyn . joinDyn) <$> workflowWidget
       where
         questionWorkflow = workflow . buildAnkiDisplayWorkflow
@@ -218,7 +148,9 @@ ankiWidget' q = do
         de <- widgetHoldHelper (state2Widget q) Prompting wantsAnswer
         return (switch $ current de)
 
-      let wantsAnswer = const Answering <$> leftmost [domEvent Click e]
+      _ <- keyPressedQuery 39
+      let wantsAnswer = const Answering <$> leftmost [-- enter,
+                                                      domEvent Click e]
       -- ^ Event after which the widget will get into the Answering state.
 
   return (e, viewer)
@@ -235,10 +167,18 @@ ankiWidget' q = do
       answViewer q' = do
         _ <- divClass "ans-img-container" $ imgClass' "ans-img" (imgSrcForQuestion q')
         (goodE, badE) <- divClass "ans-buttons-container" $ do
-          g <- buttonClass "button right" "Good"
-          b <- buttonClass "button" "Bad"
-          return (g,b)
-        return $ leftmost [const Good <$> goodE, const Bad <$> badE]
+          g <- buttonClass "button big-btn btn-good right" "Good"
+          -- gk2 <- keyPressedQuery 37
+          -- gk1 <- keyPressedQuery 13
+          -- let gk = leftmost [gk1,gk2]
+          b <- buttonClass "button big-btn btn-bad " "Bad"
+          -- bk <- keyPressedQuery 39
+          return (leftmost [g-- ,gk
+                           ],leftmost [b-- ,bk
+                                      ])
+
+        return $ leftmost [ const Good <$> goodE
+                          , const Bad <$> badE]
 
 
 ankiWidget :: MonadWidget t m => Question -> m (Event t Answer)
@@ -334,16 +274,6 @@ accuracyInfoWidget ankiLoaded maaE = divClass "accuracy-info-widget" $ do
 
 --------------------- Config widget ----------------------------
 
-ankiConfigWidget :: MonadWidget t m => Event t (Maybe Anki) -> m (Dynamic t AnkiConfig)
-ankiConfigWidget maE = do
-
-  comboLen <- comboInputWidget
-  queSel <- questionSelectorWidget maE
-
-  divClass "anki-config-widget" $ combineDyn MkAnkiConfig comboLen queSel
-  where
-    comboInputWidget = text "Combo" *> (numberInput >>= filterDynamicChanges readMaybe 3)
-
 filterDynamicChanges :: MonadWidget t m => (a-> Maybe b) -> b -> Dynamic t a -> m (Dynamic t b)
 filterDynamicChanges p initial dynamic = holdDyn initial (fmapMaybe p $ updated dynamic)
 
@@ -352,29 +282,6 @@ numberInput = _textInput_value <$> divClass "numberInput" numInp
   where
     numInp = textInput $ def & textInputConfig_inputType .~ "number"
       & textInputConfig_initialValue .~ "0"
-
-
-------- question selection
-
-widgetSelector :: MonadWidget t m => Event t (m a)
-widgetSelector = undefined
-
-
-questionSelectorWidget :: MonadWidget t m => Event t (Maybe Anki) -> m (Dynamic t QuestionSelector)
-questionSelectorWidget dynMA = joinDyn <$> widgetHold startWidget (buildWidgetEvent dynMA)
-  where
-    startWidget :: MonadWidget t m => m (Dynamic t QuestionSelector)
-    startWidget = divClass "question-selector" $ return (constDyn QsAll)
-
-    checkListWidget :: MonadWidget t m => [Question] -> m (Dynamic t QuestionSelector)
-    checkListWidget qs = divClass "question-selector" (checkList questionSelectCheckbox qs) >>= mapDyn QsSelected
-
-    buildWidgetEvent :: MonadWidget t m => Event t (Maybe Anki) -> Event t (m (Dynamic t QuestionSelector))
-    buildWidgetEvent = fmap (\case
-                                Nothing            -> startWidget
-                                (Just (Anki _ qs)) -> checkListWidget qs)
-
-    questionSelectCheckbox (Question _ _ qText) = divClass "question-checkbox" ((_checkbox_value <$> checkbox True def) <* text (T.unpack qText))
 
 
 checkList :: MonadWidget t m => (a -> m (Dynamic t Bool)) -> [a] -> m (Dynamic t [a])
@@ -395,6 +302,85 @@ checkList checkWidget items = do
       LT -> fastFilterIdx acc ixx allIvals
       EQ -> fastFilterIdx (val:acc) ixx ivals
       GT -> fastFilterIdx acc allIxx ivals
+
+-------------- new ui
+
+data AnkiSelectionState = AllLoaded AnkiProgress
+                        | Loading Anki
+                        | NotLoaded
+                        deriving (Show)
+
+
+ankiSelectionWidget :: MonadWidget t m => WorkflowWidget t m String AnkiSelectionState
+ankiSelectionWidget = MkWorkflowWidget $ \ankiState -> do
+  -- get available collections from server every n sec.
+  colls <- liftM2 (<>) getPostBuild (getTickCounter 10) >>= getAnkiNamesList
+
+  -- construct dynamic list with available collections
+  -- and stores event of clicking one of its elements
+  ankiLoaded <- getAnki =<< divClass "collections-list " (switchPromptlyDyn <$>
+                                                            widgetHold (listLeftMostClick $ listWithElems [])
+                                                                       (constructCollectionList <$> colls))
+
+  -- if anki is loaded proceed to next workflowwidget, and update state
+  let flowAction = ffor ankiLoaded $ \case
+        Nothing -> (NotLoaded, Just "ankiSelectionWidget")
+        Just al -> (Loading al, Just "ankiConfigurationWidget")
+
+  return (ankiState, flowAction)
+  where
+    constructCollectionList :: MonadWidget t m => Maybe [String] -> m (Event t String)
+    constructCollectionList Nothing = listLeftMostClick $ listWithElems []
+    constructCollectionList (Just xs ) = listLeftMostClick . listWithElems . map collectionToListElem $ xs
+
+ankiConfigurationWidget :: MonadWidget t m => WorkflowWidget t m String AnkiSelectionState
+ankiConfigurationWidget = MkWorkflowWidget $ \case
+
+  as@(Loading anki) -> do
+    backButtonPressed <- fmap (const (as, Just backFlowWidget)) <$> buttonClass "start-anki-button" "Back"
+    comboLen <- comboInputWidget
+    queSel <- questionSelectorWidget anki
+    -- set config
+    cfg <- divClass "anki-config-widget" $ combineDyn MkAnkiConfig comboLen queSel
+    newSelectionState <- mapDyn (AllLoaded . startAnki anki) cfg
+    worflowNext <- mapDyn (\nss -> (nss, Just nextFlowWidget)) newSelectionState
+    -- start anki button
+    startButtonPressed <- buttonClass "start-anki-button" "Start"
+    -- replace button event value with dynamic value
+    return (as, leftmost [backButtonPressed, tagPromptlyDyn worflowNext startButtonPressed])
+
+  as -> return (as, never)
+  where
+    backFlowWidget :: String
+    backFlowWidget = "ankiSelectionWidget"
+
+    nextFlowWidget :: String
+    nextFlowWidget = "ankiProgressVisualisationWidget"
+
+    -- TODO start with combo 3?
+    comboInputWidget = text "Combo" *> (numberInput >>= filterDynamicChanges readMaybe 3)
+
+    questionSelectorWidget :: MonadWidget t m => Anki -> m (Dynamic t QuestionSelector)
+    questionSelectorWidget (Anki _ qs') = checkListWidget qs'
+      where
+        checkListWidget :: MonadWidget t m => [Question] -> m (Dynamic t QuestionSelector)
+        checkListWidget qs = divClass "question-selector" (checkList questionSelectCheckbox qs) >>= mapDyn QsSelected
+
+        questionSelectCheckbox (Question _ _ qText) = divClass "question-checkbox" ((_checkbox_value <$> checkbox True def) <* text (T.unpack qText))
+
+
+ankiProgressVisualisationWidget :: MonadWidget t m => WorkflowWidget t m String AnkiSelectionState
+ankiProgressVisualisationWidget = MkWorkflowWidget $ \ankiState -> do
+  text "wszystko smiga"
+  return (ankiState, never)
+
+ankiSelectionWorkflowWidget :: MonadWidget t m => Workflow t m AnkiSelectionState
+ankiSelectionWorkflowWidget = widgetGraphWorkflow workflowWidgets NotLoaded "ankiSelectionWidget"
+  where
+    workflowWidgets :: MonadWidget t m => Map String (WorkflowWidget t m String AnkiSelectionState)
+    workflowWidgets = M.fromList [ ("ankiSelectionWidget", ankiSelectionWidget)
+                                 , ("ankiConfigurationWidget", ankiConfigurationWidget)
+                                 , ("ankiProgressVisualisationWidget", ankiProgressVisualisationWidget)]
 
 
 --------------------- UI AUXILLIARY ----------------------------------
@@ -422,86 +408,144 @@ imgClass' cls src = elAttr' "img" (fromList [("class", cls), ("src", src)]) $ re
 elClass' :: MonadWidget t m => String -> String -> m a -> m (El t, a)
 elClass' elementTag c = elWith' elementTag $ def & attributes .~ "class" =: c
 
-          --     widgetHold :: MonadWidget t m => m a -> Event t (m a) -> m (Dynamic t a)
+-- widgetHold :: MonadWidget t m => m a -> Event t (m a) -> m (Dynamic t a)
 widgetHoldHelper :: MonadWidget t m
     => (a -> m b) -> a -> Event t a
     -> m (Dynamic t b)
 widgetHoldHelper f eDef e = widgetHold (f eDef) (f <$> e)
 
--- test widget navigator
-
-data Nav = Back | Next
-  deriving(Eq, Show)
-
-
---     widgetHold :: MonadWidget t m => m a -> Event t (m a) -> m (Dynamic t a)
-
--- buildNavigationWorkflow :: MonadWidget t m => NonEmpty (m a) -> Workflow t m a
--- buildNavigationWorkflow ne = Workflow $ fmap (,never) w
---   where
---     buildWorkflow :: MonadWidget t m => m a -> [m a] -> [m a] -> Workflow t m a
---     buildWorkflow curr prevs nexts = Workflow $ do
---       (ret, ev) <- testWrapNav curr (safeHead prevs) (safeHead nexts)
---       return (ret,  )
-
---     safeHead []    = Nothing
---     safeHead (x:_) = x
--- buildNavigationWorkflow (w0 :| (w:ws)) = undefined
-
--- data Fix a = Fix { val  :: a
---                  , prev :: (Maybe (Fix a))
---                  , next :: (Maybe (Fix a))}
-
--- widgetView :: MonadWidget t m => m a -> [m a] -> [m a] -> m (Workflow t m a)
--- widgetView curr prevs nexts = do
---   (nE, ret) <- testWrapNav curr
---   wf <- return $ flip fmap nE $ \case
---     Back -> case prevs of
---               []     -> widgetView curr prevs nexts
---               (p:ps) -> widgetView p ps (curr:nexts)
---     Next -> case nexts of
---               []     -> widgetView curr prevs nexts
---               (n:ns) -> widgetView n (curr:prevs) ns
---   return $ Workflow (ret, wf)
-
-constructNavigationList :: MonadWidget t m => [m a] -> [m (Event t (m a), a)]
-constructNavigationList []     = []
-constructNavigationList (x:xs) = []
-
-
-
-testWorkflow :: MonadWidget t m => Behavior t (m Int) -> Map Int (m Int) -> Workflow t m Int
-testWorkflow start g = Workflow $ mdo
-  ind <- join (sample start)
-  eb <- case M.lookup (ind-1) g of
-    Nothing -> return never
-    Just i  -> fmap (const (testWorkflow (constant i) g)) <$> buttonClass "back" "Back"
-  en <- case M.lookup (ind+1) g of
-    Nothing -> return never
-    Just i  -> fmap (const (testWorkflow (constant i) g)) <$> buttonClass "next" "Next"
-  return (ind, leftmost [eb,en])
-
-
-
-
-testWrapNav :: MonadWidget t m => m a -> Maybe (m a) -> Maybe (m a) -> m (Event t (m a), a)
-testWrapNav w mPrev mNext = do
-  b <- case mPrev of
-            Nothing   -> return never
-            Just prev -> fmap (const prev) <$> buttonClass "back" "Back"
-  ret <- w
-  n <- case mNext of
-            Nothing   -> return never
-            Just next -> fmap (const next) <$> buttonClass "next" "Next"
-  return (leftmost [b,n], ret)
-
-testwidget1 :: MonadWidget t m => Int -> m Int
-testwidget1 s = (text (show s)) >> return s
 
 ------------------- OTHER AUXILIARY -----------------------------
 
+getTickCounter :: MonadWidget t m => Int -> m (Event t ())
+getTickCounter interval = void <$> (liftIO getCurrentTime >>= tickLossy (realToFrac interval))
 
 myFmapMaybe :: Monad m => (a -> m b) -> Maybe a -> m (Maybe b)
 myFmapMaybe f (Just v) = sequence . Just . f $ v
 myFmapMaybe _ Nothing  = return Nothing
 
+-- -- test widget navigator
+
+-- testLayout :: MonadWidget t m => ReflexServiceFun2 'ResourceService 'LoggingService m ()
+-- testLayout = do
+--   -- e <- currentBodyUnchecked
+--   -- kp <- holdDyn "0" $ show <$> domEvent Keydown e
+--   -- dynText kp
+--   states <- workflow ankiSelectionWorkflowWidget
+--   states_str <- mapDyn show states
+--   dynText states_str
+
+
+-- testWorkflow2_Example :: MonadWidget t m => Map String (WorkflowWidget t m String [String])
+-- testWorkflow2_Example = fromList [("1", justButton "1" "2"), ("2", justButton "2" "1")]
+--   where
+--     justButton :: MonadWidget t m => String -> String -> WorkflowWidget t m String [String]
+--     justButton name linkedWidgetName = MkWorkflowWidget $ \s -> do
+--       bE <- buttonClass "button" name
+--       let linkedWidgetE = fmap (const (name : s, Just linkedWidgetName)) bE
+--       return (s, linkedWidgetE)
+
+---- old
+
+-- mainLayout :: MonadWidget t m => ReflexServiceFun2 'ResourceService 'LoggingService m ()
+-- mainLayout = nestDivClasses ["window", "window-content", "pane-group"] $ mdo
+--     -- e <- currentBodyUnchecked
+--     -- kp <- holdDyn "0" $ show <$> (domEvent Keydown e)
+--     -- dynText kp
+--     -- main pane
+--     maaE <- divClass "pane" $ ankiWorkflowWidget (ankiLoadedWithConfig ankiConfig startAnkiE)
+
+--     -- left pane
+--     (startButtonPressed, ankiNameSelected, ankiConfig) <- divClass "darker-back pane-sm sidebar padded" $ do
+
+--           _ <- -- current completion and accuracy of chosen collection --
+--                divClass "collection-info-container" $
+--                liftM2 (,) (completionInfoWidget startAnkiE maaE)
+--                           (accuracyInfoWidget startAnkiE maaE)
+--                ----------------------------------------------------------
+
+--           -- get available collections from server every n sec.
+--           colls <- liftM2 (<>) getPostBuild (getTickCounter 10) >>= getAnkiNamesList
+
+--           -- construct dynamic list with available collections
+--           -- and stores event of clicking one of its elements
+
+--           --     widgetHold :: MonadWidget t m => m a -> Event t (m a) -> m (Dynamic t a)
+--           ankiNameSelected <- divClass "collections-list " $ switchPromptlyDyn <$> widgetHold (listLeftMostClick $ listWithElems []) (constructCollectionList <$> colls)
+
+--           -- config widget
+--           -- ankiConfig <- ankiConfigWidget ankiLoaded
+
+--           -- start anki button
+--           startButtonPressed <- buttonClass "start-anki-button" "Start"
+
+--           return (startButtonPressed, ankiNameSelected, ankiConfig)
+
+--     ankiLoaded <- getAnki ankiNameSelected
+--     loadedAnkiDyn <- holdDyn Nothing ankiLoaded
+
+--     let startAnkiE = attachDynWith const loadedAnkiDyn startButtonPressed
+
+--     return ()
+--   where
+
+--     ankiLoadedWithConfig :: Reflex t => Dynamic t AnkiConfig -> Event t (Maybe Anki) -> Event t (Maybe (Anki, AnkiConfig))
+--     ankiLoadedWithConfig = attachDynWith maybeHelper
+--       where
+--         maybeHelper _ Nothing = Nothing
+--         maybeHelper d (Just e) = Just (e, d)
+
+--     getTickCounter :: MonadWidget t m => Int -> m (Event t ())
+--     getTickCounter interval = void <$> (liftIO getCurrentTime >>= tickLossy (realToFrac interval))
+
+--     constructCollectionList :: MonadWidget t m => Maybe [String] -> m (Event t String)
+--     constructCollectionList Nothing = listLeftMostClick $ listWithElems []
+--     constructCollectionList (Just xs ) = listLeftMostClick . listWithElems . map collectionToListElem $ xs
+
+
+  -- printing currentyle pressed
+    -- e <- currentBodyUnchecked
+    -- kp <- holdDyn "0" $ show <$> (domEvent Keydown e)
+    -- dynText kp
+    -- main pane
+
+
+-- ankiWorkflowWidget :: MonadWidget t m =>
+--                       Event t (Maybe (Anki, AnkiConfig)) -> m (Event t (Maybe (AnkiStep, Answer)))
+-- ankiWorkflowWidget ema = do
+--   let mAp            = (fmap.fmap) (uncurry startAnki) ema
+--       workflowWidget = widgetHold (questionWorkflow Nothing) (fmap questionWorkflow mAp)
+
+--   (switchPromptlyDyn . joinDyn) <$> workflowWidget
+--       where
+--         questionWorkflow = workflow . buildAnkiDisplayWorkflow
+
+
+-- ankiConfigWidget :: MonadWidget t m => Event t (Maybe Anki) -> m (Dynamic t AnkiConfig)
+-- ankiConfigWidget maE = do
+
+--   comboLen <- comboInputWidget
+--   queSel <- questionSelectorWidget maE
+
+--   divClass "anki-config-widget" $ combineDyn MkAnkiConfig comboLen queSel
+--   where
+--     comboInputWidget = text "Combo" *> (numberInput >>= filterDynamicChanges readMaybe 3)
+
+
+------- question selection
+
+-- questionSelectorWidget :: MonadWidget t m => Event t (Maybe Anki) -> m (Dynamic t QuestionSelector)
+-- questionSelectorWidget dynMA = joinDyn <$> widgetHold startWidget (buildWidgetEvent dynMA)
+--   where
+--     startWidget :: MonadWidget t m => m (Dynamic t QuestionSelector)
+--     startWidget = divClass "question-selector" $ return (constDyn QsAll)
+
+--     checkListWidget :: MonadWidget t m => [Question] -> m (Dynamic t QuestionSelector)
+--     checkListWidget qs = divClass "question-selector" (checkList questionSelectCheckbox qs) >>= mapDyn QsSelected
+
+--     buildWidgetEvent :: MonadWidget t m => Event t (Maybe Anki) -> Event t (m (Dynamic t QuestionSelector))
+--     buildWidgetEvent = fmap (\case
+--                                 Nothing            -> startWidget
+--                                 (Just (Anki _ qs)) -> checkListWidget qs)
+
+--     questionSelectCheckbox (Question _ _ qText) = divClass "question-checkbox" ((_checkbox_value <$> checkbox True def) <* text (T.unpack qText))

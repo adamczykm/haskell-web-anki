@@ -34,6 +34,7 @@ executable reflex-starter
                      , lens
                      , mtl
                      , time
+                     , these
                      , aeson
                      , random-shuffle
                      , MonadRandom
