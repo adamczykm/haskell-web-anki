@@ -2,15 +2,20 @@ module Keyboard where
 
 import Reflex.Dom
 import Control.Monad.IO.Class
-import Control.Monad (void)
+-- import Control.Monad (void)
 import GHCJS.DOM.Types (Element, toElement)
 import GHCJS.DOM.Document (getBody)
 import GHCJS.DOM (currentDocument)
 
-keyPressedQuery :: MonadWidget t m => Int -> m (Event t ())
-keyPressedQuery keycode = do
+anyKeysDownQuery :: MonadWidget t m => [Int] -> m (Event t Int)
+anyKeysDownQuery keys = do
   bdy <- currentBodyUnchecked
-  return $ void (ffilter (keycode ==) (domEvent Keypress bdy))
+  return $ ffilter (`elem` keys) (domEvent Keydown bdy)
+
+keyDownQuery :: MonadWidget t m => Int -> m (Event t Int)
+keyDownQuery keycode = do
+  bdy <- currentBodyUnchecked
+  return $ ffilter (keycode ==) (domEvent Keydown bdy)
 
 currentBodyUnchecked :: MonadWidget t m => m (El t)
 currentBodyUnchecked = rawBodyUnchecked >>= wrapElement defaultDomEventHandler

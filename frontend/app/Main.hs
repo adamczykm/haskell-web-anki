@@ -147,9 +147,8 @@ ankiWidget' q = do
   rec (e, viewer) <- divClass' "anki-widget" $ do
         de <- widgetHoldHelper (state2Widget q) Prompting wantsAnswer
         return (switch $ current de)
-
-      _ <- keyPressedQuery 39
-      let wantsAnswer = const Answering <$> leftmost [-- enter,
+      kbdAccept <- anyKeysDownQuery [13,37,39]
+      let wantsAnswer = const Answering <$> leftmost [void kbdAccept,
                                                       domEvent Click e]
       -- ^ Event after which the widget will get into the Answering state.
 
@@ -168,14 +167,12 @@ ankiWidget' q = do
         _ <- divClass "ans-img-container" $ imgClass' "ans-img" (imgSrcForQuestion q')
         (goodE, badE) <- divClass "ans-buttons-container" $ do
           g <- buttonClass "button big-btn btn-good right" "Good"
-          -- gk2 <- keyPressedQuery 37
-          -- gk1 <- keyPressedQuery 13
-          -- let gk = leftmost [gk1,gk2]
+          gk <- anyKeysDownQuery [37,13]
           b <- buttonClass "button big-btn btn-bad " "Bad"
-          -- bk <- keyPressedQuery 39
-          return (leftmost [g-- ,gk
-                           ],leftmost [b-- ,bk
-                                      ])
+          bk <- keyDownQuery 39
+          performEvent_ $ liftIO . print <$> bk
+          return (leftmost [g, void gk],
+                  leftmost [b, void bk])
 
         return $ leftmost [ const Good <$> goodE
                           , const Bad <$> badE]
