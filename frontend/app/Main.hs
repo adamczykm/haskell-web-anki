@@ -277,11 +277,11 @@ accuracyInfoWidget ankiLoaded maaE = divClass "accuracy-info-widget" $ do
 filterDynamicChanges :: MonadWidget t m => (a-> Maybe b) -> b -> Dynamic t a -> m (Dynamic t b)
 filterDynamicChanges p initial dynamic = holdDyn initial (fmapMaybe p $ updated dynamic)
 
-numberInput :: MonadWidget t m => m (Dynamic t String)
-numberInput = _textInput_value <$> divClass "numberInput" numInp
+integerInput :: MonadWidget t m => Integer -> m (Dynamic t String)
+integerInput initial = _textInput_value <$> divClass "numberInput" numInp
   where
     numInp = textInput $ def & textInputConfig_inputType .~ "number"
-      & textInputConfig_initialValue .~ "0"
+      & textInputConfig_initialValue .~ show initial
 
 
 checkList :: MonadWidget t m => (a -> m (Dynamic t Bool)) -> [a] -> m (Dynamic t [a])
@@ -357,8 +357,7 @@ ankiConfigurationWidget = MkWorkflowWidget $ \case
     nextFlowWidget :: String
     nextFlowWidget = "ankiProgressVisualisationWidget"
 
-    -- TODO start with combo 3?
-    comboInputWidget = text "Combo" *> (numberInput >>= filterDynamicChanges readMaybe 3)
+    comboInputWidget = text "Combo" *> (integerInput comboLength >>= filterDynamicChanges readMaybe 3)
 
     questionSelectorWidget :: MonadWidget t m => Anki -> m (Dynamic t QuestionSelector)
     questionSelectorWidget (Anki _ qs') = checkListWidget qs'
@@ -529,7 +528,7 @@ myFmapMaybe _ Nothing  = return Nothing
 
 --   divClass "anki-config-widget" $ combineDyn MkAnkiConfig comboLen queSel
 --   where
---     comboInputWidget = text "Combo" *> (numberInput >>= filterDynamicChanges readMaybe 3)
+--     comboInputWidget = text "Combo" *> (integerInput >>= filterDynamicChanges readMaybe 3)
 
 
 ------- question selection
