@@ -21,19 +21,19 @@ serverUrl :: String
 serverUrl = "http://localhost:8666"
 -- serverUrl = "http://92.222.85.52:8666"
 
-getAnkiNamesList :: (MonadWidget t m) => Event t a -> m (Event t (Maybe [String]))
-getAnkiNamesList = getAndDecode . fmap (const $ joinPath [serverUrl, "collections"])
+getCollectionsInfo :: (MonadWidget t m) => Event t a -> m (Event t (Maybe [CollectionInfo]))
+getCollectionsInfo = getAndDecode . fmap (const $ joinPath [serverUrl, "collections"])
 
 -- instance Mona
 
-getAnki :: (MonadWidget t m) => Event t String -> m (Event t (Maybe Anki))
-getAnki nameE = do
-  mQsE   <- getAndDecode (ankiUrl <$> nameE)
-  mNameE <- hold "" nameE
+getAnki :: (MonadWidget t m) => Event t CollectionInfo -> m (Event t (Maybe Anki))
+getAnki ciE = do
+  mQsE   <- getAndDecode (ankiUrl . _ciName <$> ciE)
+  mNameE <- hold (MkCollectionInfo "" 0) ciE
 
   let anki = flip fmap (attach mNameE mQsE) $ \case
                 (_, Nothing) -> Nothing
-                (n', Just qs) -> Just $ Anki n' qs
+                (n', Just qs) -> Just $ Anki (_ciName n') qs
 
   let tmp = (fmap . fmap) (\(Anki n' qs) -> do
                               sqs <- liftIO (shuffleM qs)

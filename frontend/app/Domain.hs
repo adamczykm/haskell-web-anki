@@ -23,6 +23,10 @@ $(deriveJSON defaultOptions ''Question)
 data Answer = Good | Bad
             deriving (Show, Eq, Read, Ord)
 
+data CollectionInfo = MkCollectionInfo {_ciName :: String, _ciQuestionCount :: Int}
+  deriving(Eq,Show)
+
+$(deriveJSON defaultOptions ''CollectionInfo)
 
 -- data QuestionMemoState = QuestionMemoState {
 

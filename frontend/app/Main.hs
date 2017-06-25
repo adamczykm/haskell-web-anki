@@ -9,6 +9,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Main where
@@ -19,6 +20,8 @@ import Data.Map (Map, fromList)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Ord (comparing)
+import Data.List (sortBy)
 import Data.Monoid
 import Control.Monad (sequence, void, liftM2)
 import Control.Monad.IO.Class (liftIO)
@@ -49,7 +52,7 @@ testServiceApp = ReflexDomApp mainLayout
 mainLayout :: MonadWidget t m => ReflexServiceFun2 'ResourceService 'LoggingService m ()
 mainLayout = nestDivClasses ["window", "window-content", "pane-group"] $ mdo
 
-    _ <- divClass "pane" $ ankiWorkflowWidget (Just <$> ankiLoaded)
+    _ <- divClass "pane anki-pane" $ ankiWorkflowWidget (Just <$> ankiLoaded)
 
     -- states <- workflow ankiSelectionWorkflowWidget
     -- left pane
@@ -166,7 +169,7 @@ ankiWidget' q = do
       answViewer q' = do
         _ <- divClass "ans-img-container" $ imgClass' "ans-img" (imgSrcForQuestion q')
         (goodE, badE) <- divClass "ans-buttons-container" $ do
-          g <- buttonClass "button big-btn btn-good right" "Good"
+          g <- buttonClass "button big-btn btn-good" "Good"
           gk <- anyKeysDownQuery [37,13]
           b <- buttonClass "button big-btn btn-bad " "Bad"
           bk <- keyDownQuery 39
@@ -184,10 +187,15 @@ ankiWidget = (snd <$>) . ankiWidget'
 
 -------------------------------- RIGHT PANE LAYOUT --------------------------------------
 
-data ListElem a = ListElem { _listElemValue   :: a
-                           , _listElemImgPath :: Maybe FilePath
-                           , _listElemHeader  :: Text
-                           , _listContentText :: Text} deriving (Show, Eq, Functor)
+
+data ListElem a = ListElem { _listElemValue        :: a
+                           , _listElemName         :: Text
+                           , _listContentTextRight :: Text} deriving (Show, Eq, Functor)
+
+-- data ListElem a = ListElem { _listElemValue   :: a
+--                            , _listElemImgPath :: Maybe FilePath
+--                            , _listElemHeader  :: Text
+--                            , _listContentText :: Text} deriving (Show, Eq, Functor)
 
 newtype AnswerEvent = AnswerEvent Answer
   deriving (Read,Show,Eq,Ord)
@@ -197,10 +205,10 @@ data AnswerState = Prompting | Answering
                    deriving (Eq,Show,Ord,Enum)
 
 
-collectionToListElem :: String -> ListElem String
-collectionToListElem s = ListElem s (Just "./resources/kosmici.jpg")
-                                  (T.concat ["Collection: ", T.pack s])
-                                  (T.concat ["Description of ", T.pack s, ": Lorem ipsum dolor sit amet"])
+collectionToListElem :: CollectionInfo -> ListElem CollectionInfo
+collectionToListElem ci@MkCollectionInfo{..} = ListElem ci
+                                            (T.pack _ciName)
+                                            (T.pack $ show _ciQuestionCount ++ " pytań")
 
 listLeftMostClick :: MonadWidget t m => m [(El t, a)] -> m (Event t a)
 listLeftMostClick list' = leftmost <$> fmap (map clickHelp) list'
@@ -211,26 +219,39 @@ listLeftMostClick list' = leftmost <$> fmap (map clickHelp) list'
 listWithElems :: MonadWidget t m => [ListElem a] -> m [(El t, a)]
 listWithElems = listGroup . mapM createLiWidget
   where
-    listGroup = elClass "ul" "list-group"
-    createLiWidget (ListElem v mImgP header txt) =
-      elClass' "li" "list-group-item hvr-backward" $ do
-      _ <- myFmapMaybe createImgPath mImgP
+    listGroup = elClass "ul" "anki-list-group"
+    createLiWidget (ListElem v name right) =
+      elClass' "li" "anki-list-group-item hvr-backward" $ do
       _ <- divClass "media-body" $ do
-        el "strong" $ text (T.unpack header)
-        el "p" $ text (T.unpack txt)
+        el "strong" $ text (T.unpack name)
+        elClass "span" "inline-block-float-right" $ text (T.unpack right)
       return v
 
-createImgPath :: MonadWidget t m => FilePath -> m ()
-createImgPath imgP = let (w,h) = listElemImgSize
-                      in elAttr "img"
-                        (fromList [ ("class", "img-circle media-object pull-left")
-                                  , ("src", imgP)
-                                  , ("width", show w)
-                                  , ("height", show h)])
-                        (return ())
+-- /* <li class="anki-list-group-item hvr-backward" style=" */
+-- /*     width: 100%; */
+-- /*     color: white; */
+-- /* "><div class="media-body" style=" */
+-- /*     max-width: 100%; */
+-- /* ">Kolekcja: <strong>ALG 3 Fiszki</strong> */
+-- /*                         <span style=" */
+-- /*     display: inline-block; */
+-- /*     float: right; */
+-- /* "> 69 pytań */
+-- /*                         </span> */
+                        
+-- /*                         </div></li> */
 
-listElemImgSize :: (Int,Int)
-listElemImgSize = (32,32)
+-- createImgPath :: MonadWidget t m => FilePath -> m ()
+-- createImgPath imgP = let (w,h) = listElemImgSize
+--                       in elAttr "img"
+--                         (fromList [ ("class", "img-circle media-object pull-left")
+--                                   , ("src", imgP)
+--                                   , ("width", show w)
+--                                   , ("height", show h)])
+--                         (return ())
+
+-- listElemImgSize :: (Int,Int)
+-- listElemImgSize = (32,32)
 
 
 completionInfoWidget :: MonadWidget t m => Event t (Maybe Anki) -> Event t (Maybe (AnkiStep,Answer)) -> m (Dynamic t (Int, Int))
@@ -275,7 +296,7 @@ filterDynamicChanges :: MonadWidget t m => (a-> Maybe b) -> b -> Dynamic t a -> 
 filterDynamicChanges p initial dynamic = holdDyn initial (fmapMaybe p $ updated dynamic)
 
 integerInput :: MonadWidget t m => Integer -> m (Dynamic t String)
-integerInput initial = _textInput_value <$> divClass "numberInput" numInp
+integerInput initial = _textInput_value <$> divClass "number-input" numInp
   where
     numInp = textInput $ def & textInputConfig_inputType .~ "number"
       & textInputConfig_initialValue .~ show initial
@@ -311,7 +332,8 @@ data AnkiSelectionState = AllLoaded AnkiProgress
 ankiSelectionWidget :: MonadWidget t m => WorkflowWidget t m String AnkiSelectionState
 ankiSelectionWidget = MkWorkflowWidget $ \ankiState -> do
   -- get available collections from server every n sec.
-  colls <- liftM2 (<>) getPostBuild (getTickCounter 10) >>= getAnkiNamesList
+  colls <- (fmap.fmap) (sortBy (comparing _ciName)) <$> (getPostBuild >>= getCollectionsInfo)
+  -- colls <- liftM2 (<>) getPostBuild (getTickCounter 10) >>= getAnkiNamesList
 
   -- construct dynamic list with available collections
   -- and stores event of clicking one of its elements
@@ -326,7 +348,7 @@ ankiSelectionWidget = MkWorkflowWidget $ \ankiState -> do
 
   return (ankiState, flowAction)
   where
-    constructCollectionList :: MonadWidget t m => Maybe [String] -> m (Event t String)
+    constructCollectionList :: MonadWidget t m => Maybe [CollectionInfo] -> m (Event t CollectionInfo)
     constructCollectionList Nothing = listLeftMostClick $ listWithElems []
     constructCollectionList (Just xs ) = listLeftMostClick . listWithElems . map collectionToListElem $ xs
 
@@ -334,17 +356,25 @@ ankiConfigurationWidget :: MonadWidget t m => WorkflowWidget t m String AnkiSele
 ankiConfigurationWidget = MkWorkflowWidget $ \case
 
   as@(Loading anki) -> do
-    backButtonPressed <- fmap (const (as, Just backFlowWidget)) <$> buttonClass "start-anki-button" "Back"
+    backButtonPressed <- buttonClass "btn-back" "Back"
+    backKeyboard <- anyKeysDownQuery [37]
+    let backEvent = const (as, Just backFlowWidget) <$> leftmost [ backButtonPressed,
+                                                                   void backKeyboard]
+
+    -- start anki button
+    startButtonPressed <- buttonClass "btn-start" "Start"
+    startKeyboard <- anyKeysDownQuery [13,39]
+    let startEvent = leftmost [ startButtonPressed,
+                                void startKeyboard]
+
     comboLen <- comboInputWidget
     queSel <- questionSelectorWidget anki
     -- set config
     cfg <- divClass "anki-config-widget" $ combineDyn MkAnkiConfig comboLen queSel
     newSelectionState <- mapDyn (AllLoaded . startAnki anki) cfg
     worflowNext <- mapDyn (\nss -> (nss, Just nextFlowWidget)) newSelectionState
-    -- start anki button
-    startButtonPressed <- buttonClass "start-anki-button" "Start"
     -- replace button event value with dynamic value
-    return (as, leftmost [backButtonPressed, tagPromptlyDyn worflowNext startButtonPressed])
+    return (as, leftmost [backEvent, tagPromptlyDyn worflowNext startEvent])
 
   as -> return (as, never)
   where
@@ -354,7 +384,7 @@ ankiConfigurationWidget = MkWorkflowWidget $ \case
     nextFlowWidget :: String
     nextFlowWidget = "ankiProgressVisualisationWidget"
 
-    comboInputWidget = text "Combo" *> (integerInput comboLength >>= filterDynamicChanges readMaybe 3)
+    comboInputWidget = divClass "combo-div" $ text "Combo" *> (integerInput comboLength >>= filterDynamicChanges readMaybe 3)
 
     questionSelectorWidget :: MonadWidget t m => Anki -> m (Dynamic t QuestionSelector)
     questionSelectorWidget (Anki _ qs') = checkListWidget qs'

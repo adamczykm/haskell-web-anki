@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators   #-}
+
 module Lib
     ( startApp
     ) where
@@ -26,6 +27,11 @@ import           System.IO.Error
 
 
 ----------- questions
+
+data CollectionInfo = MkCollectionInfo {_ciName :: String, _ciQuestionCount :: Int}
+  deriving(Eq,Show)
+
+$(deriveJSON defaultOptions ''CollectionInfo)
 
 data Question = Question { qsId :: String, imgPath :: FilePath, question :: Text}
               deriving (Eq, Show)
@@ -94,7 +100,7 @@ loadQuestionsIO = fmap partitionEithers . join . fmap (either resourceDirError r
 type ResourcesAPI =
   "static" :> Raw
   :<|>
-  "collections" :> Get '[JSON] [String]
+  "collections" :> Get '[JSON] [CollectionInfo]
   :<|>
   "questions" :> Capture "collection" String :> Get '[JSON] [Question]
 
@@ -106,17 +112,21 @@ serveQuestionData fp' = serveDirectory collectionDir :<|> serveCollectionList co
   where
     collectionDir = joinPath [fp', "collections"]
 
-    serveCollectionList fp = liftIO (join $ filterM (isLegitDirectory fp) <$> listDirectory fp)
+    serveCollectionList :: FilePath -> Handler [CollectionInfo]
+    serveCollectionList fp = liftIO $ do
+      collections <- join $ filterM (isLegitDirectory fp) <$> listDirectory fp
+      questioncount <- mapM (\newFp -> length . snd <$> loadQuestionsIO (joinPath[fp, newFp])) collections
+      return $ zipWith MkCollectionInfo collections questioncount
 
     serveQuestions :: FilePath -> String -> Handler [Question]
-    serveQuestions fp coll = do
-      liftIO $ putStrLn ("requested collection: " ++ coll ++ " at " ++ fp)
-      collections <- liftIO . join $ filterM (isLegitDirectory fp) <$> listDirectory fp
+    serveQuestions fp coll = liftIO $ do
+      putStrLn ("requested collection: " ++ coll ++ " at " ++ fp)
+      collections <- join $ filterM (isLegitDirectory fp) <$> listDirectory fp
       case coll `elemIndex` collections of
-        Nothing -> liftIO (putStrLn "Nothing left") *> return []
+        Nothing -> putStrLn "Nothing left" *> return []
         _       -> do
-          (_, questions) <- liftIO $ loadQuestionsIO (joinPath [fp, coll])
-          liftIO $ print questions
+          (_, questions) <- loadQuestionsIO (joinPath [fp, coll])
+          print questions
           return $ map (adjustQuestionPaths "static") questions
 
     isLegitDirectory :: FilePath -> FilePath -> IO Bool
