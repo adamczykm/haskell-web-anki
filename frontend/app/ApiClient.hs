@@ -24,23 +24,17 @@ serverUrl = "http://localhost:8666"
 getCollectionsInfo :: (MonadWidget t m) => Event t a -> m (Event t (Maybe [CollectionInfo]))
 getCollectionsInfo = getAndDecode . fmap (const $ joinPath [serverUrl, "collections"])
 
--- instance Mona
 
-getAnki :: (MonadWidget t m) => Event t CollectionInfo -> m (Event t (Maybe Anki))
+getAnki :: (MonadWidget t m) => Event t CollectionInfo -> m (Event t Anki)
 getAnki ciE = do
-  mQsE   <- getAndDecode (ankiUrl . _ciName <$> ciE)
-  mNameE <- hold (MkCollectionInfo "" 0) ciE
+  let nameE = _ciName <$> ciE
+  -- get question from server and shuffle them if correctly downloaded
+  qsE <- fmapMaybe (>>= Just) <$> getAndDecode (ankiUrl <$> nameE)
+  -- -- sort questions
+  -- let shuffledQsE = fmap (liftIO . shuffleM) (qsE :: Event t [Question])
+  nameDyn <- hold "" nameE
 
-  let anki = flip fmap (attach mNameE mQsE) $ \case
-                (_, Nothing) -> Nothing
-                (n', Just qs) -> Just $ Anki (_ciName n') qs
-
-  let tmp = (fmap . fmap) (\(Anki n' qs) -> do
-                              sqs <- liftIO (shuffleM qs)
-                              return (Anki n' sqs))
-            anki
-
-  performEvent $ fmap sequence tmp
+  return $ uncurry Anki <$> attach nameDyn qsE
 
   where
     ankiUrl fn = joinPath [serverUrl, "questions", fn]

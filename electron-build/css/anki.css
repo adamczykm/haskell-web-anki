@@ -61,6 +61,12 @@
     border: 4px solid #AAA; /* Green */
 }
 
+
+.btn-absolute{
+    position: absolute;
+    top:20px;
+}
+
 .btn-back{
     width: 100px;
     height: 30px;
@@ -175,4 +181,9 @@
     background: #000;
     color: #fff;
     text-align: center;
+}
+
+.anki-pane-sm{
+    max-width: 350px;
+    min-width: 300px;
 }
