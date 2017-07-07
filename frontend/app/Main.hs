@@ -274,19 +274,32 @@ ankiSelectionWorkflowWidget2 = widgetGraphWorkflow workflowWidgets NotLoaded "co
 
 mainAnkiWidget :: MonadWidget t m => WorkflowWidget t m String AnkiSelectionState
 mainAnkiWidget = MkWorkflowWidget $ \case
-  ass@(AllLoaded ap@(MkAnkiProgress anki _ cfg)) -> do
+  ass@(AllLoaded ap@(MkAnkiProgress anki _ cfg)) -> mdo
+
+    -- left pane, anki progress visualization
+    backAction <- divClass "darker-back anki-pane-sm sidebar padded" $ do
+
+      -- back button that "saves" current progress
+      backButtonPressed <- buttonClass "btn-back" "Back"
+
+      -- progress visualisation
+      _ <- -- current completion and accuracy of chosen collection --
+            divClass "collection-info-container" $
+            liftM2 (,) (completionInfoWidget newAp )
+                       (accuracyInfoWidget ankiAnswerDyn)
+
+      return $ ffor (tagPromptlyDyn newAss backButtonPressed) (\na -> (na, Just "collectionSelectionWidget"))
+
     -- anki answering widget
-    ankiAnsweredE <- switchPromptlyDyn <$> workflow (buildAnkiDisplayWorkflow ap)
-    ankiAnswerDyn <- holdDyn Nothing ankiAnsweredE
+    ankiAnswerDyn <- divClass "pane anki-pane" $
+      switchPromptlyDyn <$> workflow (buildAnkiDisplayWorkflow ap) >>= holdDyn Nothing
 
     -- apply new step to current progress
-    newAss <- forDyn ankiAnswerDyn $ \case
-          Nothing            -> ass
-          Just (astep, _) -> AllLoaded (MkAnkiProgress anki astep cfg)
+    newAp <- forDyn ankiAnswerDyn $ \case
+          Nothing         -> ap
+          Just (newstep, _) -> (MkAnkiProgress anki newstep cfg)
 
-    -- back button that "saves" current progress
-    backButtonPressed <- buttonClass "btn-back btn-absolute" "Back"
-    let backAction = ffor (tagPromptlyDyn newAss backButtonPressed) (\na -> (na, Just "collectionSelectionWidget"))
+    newAss <- mapDyn AllLoaded newAp
 
     return (ass, leftmost [backAction, never])
 
@@ -296,6 +309,38 @@ mainAnkiWidget = MkWorkflowWidget $ \case
     text "wszystko smiga"
     return (ass, leftmost [backAction, never])
 
+  where
+
+    completionInfoWidget :: MonadWidget t m => Dynamic t AnkiProgress -> m (Dynamic t (Int, Int))
+    completionInfoWidget apDyn = divClass "completion-info-widget" $ do
+      text "Stan ukończenia: "
+
+      leftAndDone <- mapDyn getDoneAndTotal apDyn
+      dynText =<< completionInfo leftAndDone
+
+      return leftAndDone
+
+        where
+          getDoneAndTotal :: AnkiProgress -> (Int, Int)
+          getDoneAndTotal (MkAnkiProgress _ (ASDone ds) _)      = (length ds,  length ds)
+          getDoneAndTotal (MkAnkiProgress _ (AStep  left ds) _) = (length ds,  length left + length ds)
+
+          completionInfo :: (MonadWidget t m, Show a) => Dynamic t (a, a) -> m (Dynamic t String)
+          completionInfo = mapDyn (\(d, t)-> show d ++ "/" ++ show t)
+
+
+    accuracyInfoWidget :: MonadWidget t m => Dynamic t (Maybe (AnkiStep, Answer)) -> m (Dynamic t (Int, Int))
+    accuracyInfoWidget maaE = divClass "accuracy-info-widget" $ do
+      goodRatio <- foldDyn addAnswer (0,0) (updated maaE)
+      accuracyDynStr <- mapDyn (\(good,total) -> show good ++ "/" ++ show total) goodRatio
+      text "Wskaźnik poprawności: "
+      dynText accuracyDynStr
+      return goodRatio
+
+      where
+        addAnswer Nothing x = x
+        addAnswer (Just (_,Good)) (g,a) = (g+1,a+1)
+        addAnswer (Just (_,Bad)) (g,a) = (g,a+1)
 
 ankiNotLoadedWidget :: MonadWidget t m => a -> m a
 ankiNotLoadedWidget d = const d <$> divClass' "anki-widget-main-text" (text "Anki not loaded.")
@@ -663,3 +708,18 @@ myFmapMaybe _ Nothing  = return Nothing
 -- listElemImgSize :: (Int,Int)
 -- listElemImgSize = (32,32)
 
+
+    -- completionInfoWidget :: MonadWidget t m => AnkiStep -> Event t (Maybe (AnkiStep,Answer)) -> m (Dynamic t (Int, Int))
+    -- completionInfoWidget (ASDone qs) maaE = divClass "completion-info-widget" $ do
+    --   text "Stan ukończenia: "
+    --   dynText completionDynStr
+
+    -- completionInfoWidget (ASDone qs) maaE = divClass "completion-info-widget" $ do
+    --   -- ankistate, reseted by ankiLoaded
+    --   ankiDyn <- holdDyn Nothing ankiLoaded
+    --   ankiStateDyn <- holdDyn Nothing (leftmost [const Nothing <$> ankiLoaded,maaE])
+    --   totalandLeftDyn <- combineDyn completionInfo ankiDyn ankiStateDyn
+    --   completionDynStr <- mapDyn (\(total,left) -> show (debugPrint total - debugPrint left :: Int) ++ "/" ++ show total) totalandLeftDyn
+    --   text "Stan ukończenia: "
+    --   dynText completionDynStr
+    --   return totalandLeftDyn

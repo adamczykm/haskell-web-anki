@@ -7,6 +7,9 @@ data NonEmpty a = a :| [a]
 instance Functor NonEmpty where
   fmap f (x :| xs) = f x :| map f xs
 
+instance Foldable NonEmpty where
+  foldMap f (x :| xs) = foldMap f (x : xs)
+
 nonEmptyList :: NonEmpty a -> [a]
 nonEmptyList (x:|xs) = x : xs
 
