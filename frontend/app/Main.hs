@@ -137,9 +137,9 @@ ankiWidget' q = do
         _ <- divClass "ans-img-container" $ imgClass' "ans-img" (imgSrcForQuestion q')
         (goodE, badE) <- divClass "ans-buttons-container" $ do
           g <- buttonClass "button big-btn btn-good" "Good"
-          gk <- anyKeysDownQuery [37,13]
+          gk <- anyKeysDownQuery [39,13]
           b <- buttonClass "button big-btn btn-bad " "Bad"
-          bk <- keyDownQuery 39
+          bk <- keyDownQuery 37
           performEvent_ $ liftIO . print <$> bk
           return (leftmost [g, void gk],
                   leftmost [b, void bk])
