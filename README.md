@@ -1,4 +1,4 @@
-## haskell-web-anki (flashcard for electron and web)
+## haskell-web-anki (memoization flashcards for electron and web)
 
 This repository contains my start with both: any web development, functional reactive programming.
 It uses great Ryan Trinkle's library Reflex (and Reflex-DOM).
