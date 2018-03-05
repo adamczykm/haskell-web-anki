@@ -1,3 +1,17 @@
+## haskell-web-anki (flashcard for electron and web)
+
+This repository contains my start with both: any web development, functional reactive programming.
+It uses great Ryan Trinkle's library Reflex (and Reflex-DOM).
+It's not very usable atm, but if you're Haskell geek and have some time for setting it up 
+and flashcards to memoize (prepared as images), then go ahead and try.
+
+The code is a mess, full of patches and experiments. But should compile (may require some additional tinkering)
+to an electron app using scripts in top directory. At first it was meant to be a web application, that's why it's split into 
+server (haskell servant) and frontend application. Both parts are written almost exclusively in Haskell.
+Frontend is compiled to JS using amazing GHCJS.
+
+## License
+
 MIT License
 
 Copyright (c) 2018 Michał Adamczyk

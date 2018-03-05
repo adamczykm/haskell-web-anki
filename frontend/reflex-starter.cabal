@@ -1,18 +1,18 @@
-name:                reflex-starter
-version:             1.2.3
-synopsis:            A simple starter project for building Reflex applications with Stack
-description:         This starter project aims at providing the default working setup for building up-to-date Reflex applications with Stack.
-homepage:            https://github.com/yamafaktory/reflex-starter
-license:             BSD3
+name:                haskell-web-anki-frontend
+version:             0.1.0.0
+synopsis:            Client side of simple web applictaion serving memorization flashcards.
+-- description:
+homepage:            https://github.com/adamczykm/haskell-web-anki
+license:             MIT
 license-file:        LICENSE
-author:              Davy Duperron
-maintainer:          yamafaktory@gmail.com
-copyright:           2016 Davy Duperron
+author:              Michał Adamczyk
+maintainer:          michal.anks@gmail.com
+copyright:           2018 Michał Adamczyk
 category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
 
-executable reflex-starter
+executable haskell-web-anki-frontend
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O2
@@ -42,4 +42,4 @@ executable reflex-starter
 
 source-repository head
   type:     git
-  location: https://github.com/yamafaktory/reflex-starter
+  location: https://github.com/adamczykm/haskell-web-anki

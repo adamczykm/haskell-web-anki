@@ -1,13 +1,13 @@
-name:                backend
+name:                haskell-web-anki-backend
 version:             0.1.0.0
-synopsis:            Initial project template from stack
+synopsis:            Simple server backend for serving "flashcards".
 description:         Please see README.md
-homepage:            https://github.com/githubuser/backend#readme
-license:             BSD3
+homepage:            https://github.com/aamczykm/haskell-web-anki
+license:             MIT
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2016 Author name here
+author:              Michał Adamczyk
+maintainer:          michal.anks@gmail.com
+copyright:           2018 Michał Adamczyk
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md
@@ -45,4 +45,4 @@ test-suite backend-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/backend
+  location: https://github.com/adamczykm/haskell-web-anki
